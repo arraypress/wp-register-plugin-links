@@ -1,0 +1,51 @@
+{
+  "name": "arraypress/wp-register-plugin-links",
+  "version": "1.0.0",
+  "description": "A comprehensive WordPress library for managing plugin links, action links, and row meta with advanced features",
+  "type": "library",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://github.com/arraypress/wp-register-plugin-links/",
+  "authors": [
+    {
+      "name": "David Sherlock",
+      "homepage": "https://arraypress.com/"
+    }
+  ],
+  "require": {
+    "php": ">=7.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "ArrayPress\\WP\\Register\\": "src/"
+    },
+    "files": [
+      "src/Utilities.php"
+    ]
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true,
+    "preferred-install": "dist"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "support": {
+    "issues": "https://github.com/arraypress/wp-register-plugin-links/issues",
+    "source": "https://github.com/arraypress/wp-register-plugin-links"
+  },
+  "keywords": [
+    "wordpress",
+    "plugin",
+    "links",
+    "action-links",
+    "plugin-meta",
+    "row-meta",
+    "wp-admin",
+    "plugin-management",
+    "utm-tracking",
+    "capabilities",
+    "conditional-display",
+    "edd",
+    "easy-digital-downloads"
+  ]
+}
