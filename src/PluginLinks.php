@@ -25,18 +25,39 @@ use InvalidArgumentException;
 class PluginLinks {
 
 	/**
-	 * Instance of this class.
+	 * Collection of class instances
 	 *
-	 * @var self[] Array of instances
+	 * @var self[] Array of instances, keyed by plugin basename
 	 */
 	private static array $instances = [];
 
 	/**
-	 * Collection of registered plugins
+	 * Plugin file path
+	 *
+	 * @var string
+	 */
+	private string $plugin_file = '';
+
+	/**
+	 * Plugin basename
+	 *
+	 * @var string
+	 */
+	private string $basename = '';
+
+	/**
+	 * Collection of external links
 	 *
 	 * @var array
 	 */
-	private array $registered_plugins = [];
+	private array $external_links = [];
+
+	/**
+	 * UTM parameters
+	 *
+	 * @var array
+	 */
+	private array $utm_args = [];
 
 	/**
 	 * Debug mode status
@@ -46,52 +67,56 @@ class PluginLinks {
 	private bool $debug = false;
 
 	/**
-	 * Get instance of this class.
+	 * Get instance for a plugin
 	 *
-	 * @param string $prefix Unique identifier for the plugin instance
+	 * @param string $plugin_file Plugin file path
 	 *
-	 * @return self Instance of this class.
+	 * @return self Instance of this class
+	 * @throws InvalidArgumentException
 	 */
-	public static function instance( string $prefix = 'default' ): self {
-		if ( ! isset( self::$instances[ $prefix ] ) ) {
-			self::$instances[ $prefix ] = new self();
+	public static function instance( string $plugin_file ): self {
+		if ( empty( $plugin_file ) ) {
+			throw new InvalidArgumentException( 'Plugin file path must be provided.' );
 		}
 
-		return self::$instances[ $prefix ];
+		$basename = plugin_basename( $plugin_file );
+
+		if ( ! isset( self::$instances[ $basename ] ) ) {
+			self::$instances[ $basename ] = new self( $plugin_file );
+		}
+
+		return self::$instances[ $basename ];
 	}
 
 	/**
 	 * Constructor
+	 *
+	 * @param string $plugin_file Plugin file path
 	 */
-	private function __construct() {
-		$this->debug = defined( 'WP_DEBUG' ) && WP_DEBUG;
-		add_filter( 'plugin_action_links', [ $this, 'filter_plugin_action_links' ], 10, 4 );
-		add_filter( 'plugin_row_meta', [ $this, 'filter_plugin_row_meta' ], 10, 4 );
+	private function __construct( string $plugin_file ) {
+		$this->plugin_file = $plugin_file;
+		$this->basename    = plugin_basename( $plugin_file );
+		$this->debug       = defined( 'WP_DEBUG' ) && WP_DEBUG;
+
+		add_filter( 'plugin_action_links_' . $this->basename, [ $this, 'filter_plugin_action_links' ], 10, 2 );
+		add_filter( 'plugin_row_meta_' . $this->basename, [ $this, 'filter_plugin_row_meta' ], 10, 2 );
+
+		$this->log( sprintf( 'Initialized plugin links for: %s', $this->basename ) );
 	}
 
 	/**
-	 * Register links for a plugin
+	 * Register links
 	 *
-	 * @param string $file           Plugin file path
-	 * @param array  $external_links Array of external links
-	 * @param array  $utm_args       Optional UTM parameters
+	 * @param array $external_links Array of external links
+	 * @param array $utm_args       Optional UTM parameters
 	 *
 	 * @return self Instance for method chaining
 	 */
-	public function register( string $file, array $external_links = [], array $utm_args = [] ): self {
-		if ( empty( $file ) ) {
-			throw new InvalidArgumentException( 'Plugin file path must be provided.' );
-		}
+	public function register( array $external_links = [], array $utm_args = [] ): self {
+		$this->external_links = $this->prepare_links( $external_links );
+		$this->utm_args       = $this->prepare_utm_args( $utm_args );
 
-		$basename = plugin_basename( $file );
-
-		$this->registered_plugins[ $basename ] = [
-			'file'           => $file,
-			'external_links' => $this->prepare_links( $external_links ),
-			'utm_args'       => $this->prepare_utm_args( $utm_args )
-		];
-
-		$this->log( sprintf( 'Registered plugin links for: %s', $basename ) );
+		$this->log( sprintf( 'Registered %d links', count( $external_links ) ) );
 
 		return $this;
 	}
@@ -145,9 +170,8 @@ class PluginLinks {
 	 * @return array Modified links
 	 */
 	public function filter_plugin_action_links( array $links, string $plugin_file ): array {
-		if ( isset( $this->registered_plugins[ $plugin_file ] ) ) {
-			$config = $this->registered_plugins[ $plugin_file ];
-			$links  = $this->process_links( $links, $config, 'action' );
+		if ( $plugin_file === $this->basename ) {
+			$links = $this->process_links( $links, 'action' );
 		}
 
 		return $links;
@@ -162,9 +186,8 @@ class PluginLinks {
 	 * @return array Modified links
 	 */
 	public function filter_plugin_row_meta( array $links, string $plugin_file ): array {
-		if ( isset( $this->registered_plugins[ $plugin_file ] ) ) {
-			$config = $this->registered_plugins[ $plugin_file ];
-			$links  = $this->process_links( $links, $config, 'row_meta' );
+		if ( $plugin_file === $this->basename ) {
+			$links = $this->process_links( $links, 'row_meta' );
 		}
 
 		return $links;
@@ -174,13 +197,12 @@ class PluginLinks {
 	 * Process links based on configuration
 	 *
 	 * @param array  $existing_links Current links
-	 * @param array  $config         Plugin configuration
 	 * @param string $position       Link position type
 	 *
 	 * @return array Processed links
 	 */
-	protected function process_links( array $existing_links, array $config, string $position ): array {
-		foreach ( $config['external_links'] as $key => $link ) {
+	protected function process_links( array $existing_links, string $position ): array {
+		foreach ( $this->external_links as $key => $link ) {
 			// Check position
 			if ( ( $position === 'action' && ! $link['action'] ) ||
 			     ( $position === 'row_meta' && $link['action'] ) ) {
@@ -199,7 +221,7 @@ class PluginLinks {
 
 			// Generate link
 			if ( ! empty( $link['url'] ) && ! empty( $link['label'] ) ) {
-				$url = $link['utm'] ? $this->add_utm_params( $link['url'], $config['utm_args'] ) : $link['url'];
+				$url = $link['utm'] ? $this->add_utm_params( $link['url'], $this->utm_args ) : $link['url'];
 
 				$attrs = array_filter( [
 					'href'   => esc_url( $url ),
@@ -244,7 +266,8 @@ class PluginLinks {
 	protected function log( string $message, array $context = [] ): void {
 		if ( $this->debug ) {
 			error_log( sprintf(
-				'[Plugin Links] %s %s',
+				'[Plugin Links] [%s] %s %s',
+				$this->basename,
 				$message,
 				! empty( $context ) ? json_encode( $context ) : ''
 			) );

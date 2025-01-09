@@ -16,8 +16,25 @@ if ( ! function_exists( 'register_plugin_links' ) ):
 	/**
 	 * Register plugin links
 	 *
+	 * Example usage:
+	 * ```php
+	 * $links = [
+	 *     'docs' => [
+	 *         'label' => 'Documentation',
+	 *         'url'   => 'https://example.com/docs'
+	 *     ],
+	 *     'settings' => [
+	 *         'action' => true,
+	 *         'label'  => 'Settings',
+	 *         'url'    => admin_url('admin.php?page=my-settings'),
+	 *         'capability' => 'manage_options'
+	 *     ]
+	 * ];
+	 *
+	 * register_plugin_links(__FILE__, $links);
+	 * ```
+	 *
 	 * @param string        $file           Plugin file path
-	 * @param string        $prefix         Unique prefix for this plugin
 	 * @param array         $external_links Array of external links
 	 * @param array         $utm_args       Optional UTM parameters
 	 * @param callable|null $error_callback Optional error callback
@@ -26,13 +43,12 @@ if ( ! function_exists( 'register_plugin_links' ) ):
 	 */
 	function register_plugin_links(
 		string $file,
-		string $prefix,
 		array $external_links = [],
 		array $utm_args = [],
 		?callable $error_callback = null
 	): ?PluginLinks {
 		try {
-			return PluginLinks::instance( $prefix )->register( $file, $external_links, $utm_args );
+			return PluginLinks::instance( $file )->register( $external_links, $utm_args );
 		} catch ( Exception $e ) {
 			if ( is_callable( $error_callback ) ) {
 				call_user_func( $error_callback, $e );
@@ -47,8 +63,22 @@ if ( ! function_exists( 'register_edd_plugin_links' ) ):
 	/**
 	 * Register EDD-specific plugin links
 	 *
+	 * Example usage:
+	 * ```php
+	 * register_edd_plugin_links(
+	 *     __FILE__,
+	 *     'extensions',
+	 *     'my_extension',
+	 *     [
+	 *         'pro' => [
+	 *             'label' => 'Upgrade to Pro',
+	 *             'url'   => 'https://example.com/pro'
+	 *         ]
+	 *     ]
+	 * );
+	 * ```
+	 *
 	 * @param string        $file             Plugin file path
-	 * @param string        $prefix           Unique prefix for this plugin
 	 * @param string        $settings_tab     EDD settings tab
 	 * @param string        $settings_section EDD settings section
 	 * @param array         $external_links   Additional external links
@@ -59,7 +89,6 @@ if ( ! function_exists( 'register_edd_plugin_links' ) ):
 	 */
 	function register_edd_plugin_links(
 		string $file,
-		string $prefix,
 		string $settings_tab = '',
 		string $settings_section = '',
 		array $external_links = [],
@@ -101,6 +130,55 @@ if ( ! function_exists( 'register_edd_plugin_links' ) ):
 			];
 		}
 
-		return register_plugin_links( $file, $prefix, $external_links, $utm_args, $error_callback );
+		return register_plugin_links( $file, $external_links, $utm_args, $error_callback );
 	}
 endif;
+
+/**
+ * Usage Examples:
+ *
+ * 1. Basic registration:
+ * ```php
+ * $links = [
+ *     'docs' => [
+ *         'label' => 'Documentation',
+ *         'url'   => 'https://example.com/docs'
+ *     ],
+ *     'settings' => [
+ *         'action'     => true,
+ *         'label'      => 'Settings',
+ *         'capability' => 'manage_options',
+ *         'url'        => admin_url('admin.php?page=my-settings')
+ *     ]
+ * ];
+ *
+ * register_plugin_links(__FILE__, $links);
+ * ```
+ *
+ * 2. With UTM tracking:
+ * ```php
+ * register_plugin_links(
+ *     __FILE__,
+ *     $links,
+ *     [
+ *         'utm_source'   => 'plugin-page',
+ *         'utm_campaign' => 'documentation'
+ *     ]
+ * );
+ * ```
+ *
+ * 3. EDD integration:
+ * ```php
+ * register_edd_plugin_links(
+ *     __FILE__,
+ *     'extensions',
+ *     'my_extension',
+ *     [
+ *         'pro' => [
+ *             'label' => 'Upgrade to Pro',
+ *             'url'   => 'https://example.com/pro'
+ *         ]
+ *     ]
+ * );
+ * ```
+ */
